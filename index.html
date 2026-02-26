@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Movimentação de Vans - Bel-tour</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: #121212; color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        /* Estilo do botão de interrogação */
+        .container { width: 100%; max-width: 400px; position: relative; }
+        .btn-help {
+            position: absolute; right: 0; top: 0;
+            background: #1e1e1e; color: #00e676; border: 1px solid #00e676;
+            width: 32px; height: 32px; border-radius: 50%;
+            font-weight: bold; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; text-decoration: none;
+            font-size: 18px;
+        }
+
+        h2 { color: #00e676; text-align: center; margin-bottom: 20px; text-transform: uppercase; }
+        .form-group { display: flex; flex-direction: column; margin-bottom: 15px; width: 100%; }
+        label { font-size: 14px; margin-bottom: 5px; color: #b0b0b0; }
+        .time-row { display: flex; gap: 5px; }
+        select, input {
+            background-color: #1e1e1e; border: 1px solid #333; color: white;
+            padding: 12px; border-radius: 8px; font-size: 16px; outline: none; width: 100%;
+        }
+        
+        .check-group {
+            display: flex; align-items: center; gap: 10px;
+            background: #1e1e1e; padding: 12px; border-radius: 8px;
+            border: 1px solid #333; margin-bottom: 10px; cursor: pointer;
+            user-select: none; transition: opacity 0.3s;
+        }
+        .check-group.disabled {
+            opacity: 0.2; cursor: not-allowed; pointer-events: none; filter: grayscale(1);
+        }
+        .check-group input { width: 22px; height: 22px; accent-color: #00e676; cursor: pointer; }
+        .check-group span { flex: 1; cursor: pointer; }
+
+        #preview-container { display: none; margin-top: 10px; margin-bottom: 20px; }
+        .preview-box {
+            background-color: #1a1a1a; border-left: 4px solid #00e676;
+            padding: 15px; border-radius: 4px; font-size: 14px; white-space: pre-wrap; color: #aaa; margin-bottom: 10px;
+        }
+        .btn-copy {
+            background-color: #00e676; color: #000; border: none; padding: 15px;
+            border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer;
+        }
+        .btn-short {
+            background-color: #00c853; color: #000; border: none; padding: 10px;
+            border-radius: 8px; font-weight: bold; font-size: 13px; width: 100%; margin-top: 8px; cursor: pointer;
+        }
+        .btn-clear { 
+            background-color: #333; color: #e0e0e0; border: none; padding: 10px; 
+            border-radius: 8px; width: 100%; margin-top: 15px; cursor: pointer;
+        }
+        .status-msg { text-align: center; font-size: 12px; margin-top: 10px; color: #00e676; visibility: hidden; }
+        .footer-sig { margin-top: 40px; font-size: 10px; color: #444; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="manual.html" class="btn-help">?</a>
+    <h2>MOVIMENTAÇÃO DE VANS</h2>
+
+    <div class="form-group">
+        <label>Ponto de Embarque / Atividade</label>
+        <select id="embarque" onchange="verificarTipo()">
+            <option value="EMBARQUE CENTRAL">EMBARQUE CENTRAL</option>
+            <option value="EMBARQUE LGO DO MACHADO">EMBARQUE LGO DO MACHADO</option>
+            <option value="EMBARQUE LGO DO MACHADO (MOTORISTAS DE PASSE)">EMBARQUE LGO DO MACHADO (MOTORISTAS DE PASSE)</option>
+            <option value="PAINEIRAS">PAINEIRAS</option>
+            <option value="ABASTECIMENTO">ABASTECIMENTO</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Horário (Hora : Min)</label>
+        <div class="time-row">
+            <select id="hora" onchange="validarVisibilidade()"></select>
+            <select id="minuto" onchange="validarVisibilidade()"></select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label id="label-quantidade">Qtd. Integrantes</label>
+        <input type="number" id="quantidade" placeholder="Ex: 13" oninput="validarVisibilidade()">
+    </div>
+
+    <div class="form-group">
+        <label>Número da Van</label>
+        <input type="text" id="van" placeholder="Ex: 130" oninput="validarVisibilidade()">
+    </div>
+
+    <div class="form-group">
+        <label>Adicionais</label>
+        <div class="check-group lock-on-abast" onclick="toggleCheck('icmbio', event)">
+            <input type="checkbox" id="icmbio" onchange="validarVisibilidade()" onclick="event.stopPropagation()">
+            <span>ICMbio</span>
+        </div>
+        <div class="check-group" onclick="toggleCheck('incHorario', event)">
+            <input type="checkbox" id="incHorario" onchange="validarVisibilidade()" onclick="event.stopPropagation()">
+            <span>Incluir Horário no Resumo</span>
+        </div>
+        <div class="check-group lock-on-abast" onclick="toggleCheck('bateVolta', event)">
+            <input type="checkbox" id="bateVolta" onchange="validarVisibilidade()" onclick="event.stopPropagation()">
+            <span>Bate e Volta</span>
+        </div>
+        <div class="check-group lock-on-abast" onclick="toggleCheck('segundoHorario', event)">
+            <input type="checkbox" id="segundoHorario" onchange="validarVisibilidade()" onclick="event.stopPropagation()">
+            <span>Segundo Horário</span>
+        </div>
+        <div class="check-group lock-on-abast" onclick="toggleCheck('extraAbastecimento', event)">
+            <input type="checkbox" id="extraAbastecimento" onchange="validarVisibilidade()" onclick="event.stopPropagation()">
+            <span>+ Abastecimento</span>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Nome do Motorista (Opcional)</label>
+        <input type="text" id="nome-motorista" placeholder="Digite se desejar" oninput="validarVisibilidade()">
+    </div>
+
+    <div id="preview-container">
+        <label style="color: #00e676; font-size: 11px;">RELATÓRIO COMPLETO:</label>
+        <div id="preview" class="preview-box"></div>
+        
+        <label style="color: #00e676; font-size: 11px;">INFORME RÁPIDO (RESUMO):</label>
+        <div id="preview-curto" class="preview-box"></div>
+    </div>
+
+    <button class="btn-copy" id="btnCopiar" onclick="copiarRelatorio('completo')">COPIAR RELATÓRIO</button>
+    <button class="btn-short" id="btnCopiarCurto" onclick="copiarRelatorio('curto')">COPIAR CURTO (WHATSAPP)</button>
+    
+    <button class="btn-clear" onclick="limparCampos()">LIMPAR TUDO</button>
+
+    <p id="status" class="status-msg">Copiado com sucesso! ✅</p>
+
+    <div class="footer-sig">by Tiago C Araujo – Araújo II – mat 3240 – Bel-tour 🚌🗽🚠😎👨‍✈️</div>
+</div>
+
+<script>
+    const sH = document.getElementById('hora');
+    const sM = document.getElementById('minuto');
+    
+    for(let i=0; i<24; i++) { let h = i<10?'0'+i:i; sH.options[sH.options.length] = new Option(h, h); }
+    for(let i=0; i<60; i++) { let m = i<10?'0'+i:i; sM.options[sM.options.length] = new Option(m, m); }
+
+    const agora = new Date();
+    sH.value = agora.getHours() < 10 ? '0' + agora.getHours() : agora.getHours();
+    sM.value = agora.getMinutes() < 10 ? '0' + agora.getMinutes() : agora.getMinutes();
+
+    function toggleCheck(id, event) {
+        const el = document.getElementById(id);
+        const parent = el.closest('.check-group');
+        if (parent.classList.contains('disabled')) return;
+        if (event.target !== el) { el.checked = !el.checked; }
+        validarVisibilidade();
+    }
+
+    function obterSaudacao() {
+        const h = parseInt(sH.value);
+        if (h >= 5 && h < 12) return "Bom dia!";
+        if (h >= 12 && h < 18) return "Boa tarde!";
+        return "Boa noite!";
+    }
+
+    function verificarTipo() {
+        const emb = document.getElementById('embarque').value;
+        const locks = document.querySelectorAll('.lock-on-abast');
+        document.getElementById('label-quantidade').innerText = (emb === "ABASTECIMENTO") ? "KM" : "Qtd. Integrantes";
+        locks.forEach(div => {
+            const input = div.querySelector('input');
+            if (emb === "ABASTECIMENTO") {
+                div.classList.add('disabled');
+                input.checked = false;
+            } else {
+                div.classList.remove('disabled');
+            }
+        });
+        validarVisibilidade();
+    }
+
+    function validarVisibilidade() {
+        const inputs = ['quantidade', 'van', 'nome-motorista'];
+        const checks = ['bateVolta', 'segundoHorario', 'extraAbastecimento', 'icmbio', 'incHorario'];
+        
+        let preenchido = inputs.some(id => document.getElementById(id).value) || 
+                         checks.some(id => document.getElementById(id).checked);
+        
+        document.getElementById('preview-container').style.display = preenchido ? 'block' : 'none';
+        
+        const emb = document.getElementById('embarque').value;
+        const n = document.getElementById('nome-motorista').value;
+        const btn = document.getElementById('btnCopiar');
+        const btnC = document.getElementById('btnCopiarCurto');
+        
+        if (emb === "ABASTECIMENTO" && !n) {
+            btn.disabled = true; btnC.disabled = true;
+        } else {
+            btn.disabled = false; btnC.disabled = false;
+        }
+
+        document.getElementById('preview').innerText = gerarTexto('completo');
+        document.getElementById('preview-curto').innerText = gerarTexto('curto');
+    }
+
+    function gerarTexto(tipo) {
+        const emb = document.getElementById('embarque').value;
+        const h = sH.value;
+        const mi = sM.value;
+        const q = document.getElementById('quantidade').value || "0";
+        const vRaw = document.getElementById('van').value || ""; 
+        const n = document.getElementById('nome-motorista').value.toUpperCase();
+        
+        const bv = document.getElementById('bateVolta').checked;
+        const sh = document.getElementById('segundoHorario').checked;
+        const abast = document.getElementById('extraAbastecimento').checked;
+        const icm = document.getElementById('icmbio').checked;
+        const incH = document.getElementById('incHorario').checked;
+        
+        const saudacao = obterSaudacao();
+        const vFormatada = (vRaw && vRaw !== "") ? ((!vRaw.toUpperCase().startsWith("VTR")) ? "VTR " + vRaw : vRaw) : "";
+
+        if (tipo === 'curto') {
+            let resumo = `${saudacao}\n`;
+            if (incH) resumo += `${h}:${mi}\n`;
+            resumo += `\n`;
+            if (vFormatada) resumo += `${vFormatada}\n`;
+            resumo += `${emb}${icm ? " (ICMbio)" : ""}\n`;
+            resumo += `${q} ${(emb === "ABASTECIMENTO") ? 'KM' : 'Integrantes'}\n`;
+            if (sh) resumo += `Segundo Horário `;
+            let extras = [];
+            if (bv) extras.push("Bate e Volta");
+            if (abast) extras.push("+ Abastecimento");
+            if (extras.length > 0) resumo += `(${extras.join(" / ")})`;
+            if (n) resumo += `\n\n👤 ${n}`;
+            return resumo;
+        } else {
+            let texto = `${saudacao}\n\n*RELATÓRIO DE VANS*\n`;
+            texto += `📍 *Local:* ${emb}${icm ? " (ICMbio)" : ""}\n`;
+            texto += `⏰ *Horário:* ${h}:${mi}\n`;
+            texto += (emb === "ABASTECIMENTO") ? `🛣️ *KM:* ${q}\n` : `👥 *Integrantes:* ${q}\n`;
+            if (vRaw) texto += `🚐 *Van:* ${vRaw}\n`;
+            if (sh) texto += `\n⌛ Segundo Horário`;
+            let extras = [];
+            if (bv) extras.push("Bate e Volta");
+            if (abast) extras.push("+ Abastecimento");
+            if (extras.length > 0) texto += `\n📝 *Obs:* ${extras.join(" / ")}`;
+            if (n) texto += `\n\n👤 *Motorista:* ${n}`;
+            return texto;
+        }
+    }
+
+    function copiarRelatorio(tipo) {
+        const texto = gerarTexto(tipo);
+        navigator.clipboard.writeText(texto).then(() => {
+            const status = document.getElementById('status');
+            status.style.visibility = 'visible';
+            setTimeout(() => { status.style.visibility = 'hidden'; }, 2000);
+        });
+    }
+
+    function limparCampos() {
+        ['quantidade', 'van', 'nome-motorista'].forEach(id => document.getElementById(id).value = "");
+        document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = false);
+        verificarTipo();
+    }
+</script>
+</body>
+</html>
